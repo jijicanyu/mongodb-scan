@@ -32,11 +32,13 @@ for example:python scan.py -u 192.168.1.1 --nmap
 pip install pymongo IPy python-libnmap
 
 2、install nmap
+
 oxs:brew install nmap
 linux:apt-get install nmap
 windows:download nmap setup package
 
 3、use
+
 There are two way to scan, one is use --nmap,and the other don't use nmap.
 Use nmap scan fast and accurate,but you can't stop it by ctrl+c,because libnmap use process to do nmap
 
