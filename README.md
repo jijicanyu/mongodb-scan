@@ -1,6 +1,6 @@
 # mongodb-scan
 
-mongodb sever scanner!
+A simple mongodb sever scanner use libnmap!
 
 usage:
 python scan.py --help
@@ -40,6 +40,7 @@ windows:download nmap setup package
 3、use
 
 There are two way to scan, one is use --nmap,and the other don't use nmap.
-Use nmap scan fast and accurate,but you can't stop it by ctrl+c,because libnmap use process to do nmap
+
+Use nmap scan fast and accurate, when the namp find the mongodb server, then check the empty authentication.But you can't stop it by ctrl+c when it's running,because libnmap use Process to do nmap,if press ctrl+c,the Process won't stop normally,if you have more solvtions,thank you for correct this.
 
 Don't use nmap way is use socket to connect the mongodb server,check the mongodb wheather open and check the empty authentication。
