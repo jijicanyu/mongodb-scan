@@ -3,7 +3,7 @@
 A simple mongodb sever scanner used libnmap!
 
 #usage:
-** python scan.py --help **
+**python scan.py --help**
 
 optional arguments:
   
@@ -39,8 +39,8 @@ for example: **python scan.py -u 192.168.1.0/24 -t 10 --nmap**
 
 # 3. usage
 
-	There are two way to scan, one is use --nmap,and the other way is without nmap.
+There are two way to scan, one is use --nmap,and the other way is without nmap.
 
-	Use nmap scan fast and accurate, when the namp find the mongodb server, then check the empty authentication.But you can't stop it by ctrl+c when it's running,because libnmap use Process to do nmap,if press ctrl+c,the Process won't stop normally,if you have more solutions,thank you for this.
+Use nmap scan fast and accurate, when the namp find the mongodb server, then check the empty authentication.But you can't stop it by ctrl+c when it's running,because libnmap use Process to do nmap,if press ctrl+c,the Process won't stop normally,if you have more solutions,thank you for this.
 
-	Without nmap way is that use socket to connect the mongodb server,check the mongodb wheather open and check the empty authentication。
+Without nmap way is that use socket to connect the mongodb server,check the mongodb wheather open and check the empty authentication.
