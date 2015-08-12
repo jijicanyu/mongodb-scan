@@ -8,13 +8,11 @@ import Queue
 import logging
 import datetime
 #third lib
-import pymongo
 from IPy import IP
 #myself lib
 from lib import console_print
 from lib import cmd_parse
 from lib import mongodb_check
-from lib import mongodb_nmap
 
 class mongodb_scan:
 
@@ -23,20 +21,21 @@ class mongodb_scan:
     '''
 
     def __init__(self):
-        self.__APP_STOP = False
-        self.__queue_target = Queue.Queue()
+        self.APP_STOP = False
+        self.queue_target = Queue.Queue()
         self.__lock_output_msg = threading.Lock()
-        self.__lock_thread_num = threading.Lock()
-        self.__thread_num = 0
+        self.lock_thread_num = threading.Lock()
+        self.thread_num = 0
         self.__target_total = 0
         self.__progress_deltal = 5
         self.__progress_num = 0
         self.__progress_last = 0
+        self.__queue_output_msg = Queue.Queue()
         # get argument
-        self.__args = cmd_parse.get_argument()
+        self.args = cmd_parse.get_argument()
         filename = datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')+'.txt'
-        if self.__args.logfile!= None:
-            filename = self.__args.logfile
+        if self.args.logfile!= None:
+            filename = self.args.logfile
         logging.basicConfig(level=logging.INFO,format='%(message)s',filename=filename,filemode="a")                
 
 
@@ -45,40 +44,40 @@ class mongodb_scan:
         get target from cmd line by --u(target)
         '''
         try:
-            ips = IP(self.__args.target)
+            ips = IP(self.args.target)
 
             self.__target_total = len(ips)
             for ip in ips:
-                self.__queue_target.put(str(ip))
+                self.queue_target.put(str(ip))
             return True
         except Exception, ex:
-            print "[-]Fail to get target:%s" % ex.message
+            self.print_result("[-]Fail to get target:%s" % ex.message)
             return False
 
     def __get_target_from_file(self):
         '''
         get target from a scanned log file,the everyone target is same like ip:port,xxx(target info)
         '''
-        with open(self.__args.file) as f:
+        with open(self.args.file) as f:
             for line in f:
                 host_port = line.split(',')[0]
                 try:
                     ip = IP(host_port.split(':')[0])
-                    self.__queue_target.put(str(ip))
+                    self.queue_target.put(str(ip))
                     self.__target_total += 1
                 except:
                     continue
         return True
 
 
-    def __generate_target_queue(self):
+    def generate_target_queue(self):
         '''
         generate all the target ip
         '''
-        if self.__args.target != None:
+        if self.args.target != None:
             return self.__get_target_from_line()
 
-        if self.__args.file != None:
+        if self.args.file != None:
             return self.__get_target_from_file()
 
         return False
@@ -87,16 +86,16 @@ class mongodb_scan:
         '''
         get one target from queue, and get the progress 
         '''
-        if self.__queue_target.empty():
+        if self.queue_target.empty():
             return None
         try:
-            target = self.__queue_target.get(block=False)
+            target = self.queue_target.get(block=False)
 
             self.__progress_num += 1
             progress_now = 100 * self.__progress_num / self.__target_total
             if progress_now - self.__progress_last >= self.__progress_deltal:
                 self.__progress_last = progress_now
-                self.__print_result(
+                self.print_result(
                     '[-]progress: %d%%...' % self.__progress_last)
 
             return target
@@ -112,40 +111,50 @@ class mongodb_scan:
         console_print.print_progress(msg)
         self.__lock_output_msg.release()
 
-    def __print_result(self, msg):
+    def print_result(self, msg):
         '''
         show result message
         '''
+        self.__queue_output_msg.put(msg)
         self.__lock_output_msg.acquire()
         console_print.print_result(msg)
         self.__lock_output_msg.release()
 
-    def __do_scan(self):
+
+    def get_output_msg(self):
+        '''
+        get one output message from queue
+        '''
+        if self.__queue_output_msg.empty():
+            return None
+        return self.__queue_output_msg.get()
+
+    def do_scan(self):
         '''
         scan process
         '''
         # start
-        self.__lock_thread_num.acquire()
-        self.__thread_num += 1
-        self.__lock_thread_num.release()
+        self.lock_thread_num.acquire()
+        self.thread_num += 1
+        self.lock_thread_num.release()
         # do loop
         while True:
-            if self.__APP_STOP == True:
+            if self.APP_STOP == True:
                 break
             target = self.__get_one_target()
             if target == None:
                 break
             # scan target
             self.__print_progress('target:%s...' % target)
-            if self.__args.nmap :
-                target_info = self.__do_nmap_one_target(target,self.__args.port)
+            if self.args.nmap :
+                target_info = self.__do_nmap_one_target(target,self.args.port)
             else:
-                target_info = self.__do_scan_one_target(target, self.__args.port)
+                target_info = self.do_scan_one_target(target, self.args.port)
             # show server info:
             if len(target_info) > 0:
                 for ti in target_info:
                     info = ''
-                    if self.__args.nmap :
+                    if self.args.nmap :
                         server_info = mongodb_check.get_mongodb_server_info(ti[0],ti[1])
                         if server_info != None:
                             info = '%s:%d,%s' % (ti[0], ti[1], server_info)
@@ -154,22 +163,23 @@ class mongodb_scan:
 
                     if info != '':
                         logging.info (info)
-                        self.__print_result('[+]' + info)
+                        self.print_result('[+]' + info)
         # end
-        self.__lock_thread_num.acquire()
-        self.__thread_num -= 1
-        self.__lock_thread_num.release()
+        self.lock_thread_num.acquire()
+        self.thread_num -= 1
+        self.lock_thread_num.release()
 
     def __do_nmap_one_target(self,target,ports):
         '''
         use nmap to scan one target
         '''
+        from lib import mongodb_nmap
         target_info = mongodb_nmap.nmap_mongodb(target,ports)
 
         return target_info
 
 
-    def __do_scan_one_target(self, target, ports):
+    def do_scan_one_target(self, target, ports):
         '''
         scan one target and everyone port
         '''
@@ -180,12 +190,12 @@ class mongodb_scan:
             port = int(p)
             # check port open:
             check_open = mongodb_check.check_mongodb_open(
-                target, port, timeout=self.__args.timeout)
+                target, port, timeout=self.args.timeout)
             if check_open == False:
                 continue
             # get server info
             server_info = mongodb_check.get_mongodb_server_info(
-                target, port, timeout=self.__args.timeout)
+                target, port, timeout=self.args.timeout)
             if server_info == None:
                 #server_info = 'connect fail' 
                 continue   
@@ -198,29 +208,29 @@ class mongodb_scan:
         '''
         run the scan process,and use multi-thread
         '''
-        get_target = self.__generate_target_queue()
+        get_target = self.generate_target_queue()
         if get_target == False:
             return
-        print "[+]start run,total target:%d" % self.__queue_target.qsize()
-        for i in range(self.__args.threads):
-            t_scan = threading.Thread(target=self.__do_scan, args=())
+        print "[+]start run,total target:%d" % self.queue_target.qsize()
+        for i in range(self.args.threads):
+            t_scan = threading.Thread(target=self.do_scan, args=())
             t_scan.setDaemon(True)
             t_scan.start()
         while True:
-            self.__lock_thread_num.acquire()
-            thread_num = self.__thread_num
-            self.__lock_thread_num.release()
+            self.lock_thread_num.acquire()
+            thread_num = self.thread_num
+            self.lock_thread_num.release()
             if thread_num <= 0:
                 break
             try:
                 time.sleep(0.01)
             except KeyboardInterrupt:
-                self.__APP_STOP = True
-                self.__print_result(
-                    '[-]waiting for %d thread exit...' % self.__thread_num)
+                self.APP_STOP = True
+                self.print_result(
+                    '[-]waiting for %d thread exit...' % self.thread_num)
 
-        self.__print_result("[-]finish!")
-
+        self.print_result("[-]finish!")
+        self.APP_STOP = True
 
 def main():
     app = mongodb_scan()
