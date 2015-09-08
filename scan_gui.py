@@ -116,6 +116,7 @@ class Application(Frame):
 
 def main():
     root = Tk()
+    root.iconbitmap('icon.ico')
     root.title(u'mongodb未验证授权扫描器')
     app = Application(master=root)
     app.mainloop()
